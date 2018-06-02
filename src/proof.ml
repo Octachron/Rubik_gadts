@@ -11,10 +11,10 @@ module type t = sig type t end
 let lift (type t) (x:t): (module t with type t = t ) =
   (module struct type nonrec t = t end)
 
-module Point = (val lift [Xpp;Ypp;Xpp])
+module Point = (val lift [Xpp;Ypp;Xpp;Zpp])
 
 type truth = T
-let diameter_is_greater_than_three: Point.t -> truth =
+let diameter_is_greater_than_four: Point.t -> truth =
   function
-  |  _::_::_::_ -> T
+  |  _::_::_::_::_ -> T
   | _ -> .
