@@ -86,15 +86,20 @@ let index_of (c,x) cube' =
   let exception Found of int in
   try
     Array.iteri ((fun i (_,x') -> if x = x' then raise (Found i))) cube';
-    assert false
+    Format.eprintf "Cannot find %a@." Vec.pp x;
+    raise Not_found
   with
     Found i -> i
 
 let mapping f =
   let cube' = Array.map (lift_t f) cube in
-(*  Format.printf "@[<v>%a@]@." pp_points cube;
-    Format.printf "@[<v>%a@]@." pp_points cube';*)
-  Array.init size (fun n -> index_of cube.(n) cube')
+  try Array.init size (fun n -> index_of cube.(n) cube') with
+  | Not_found ->
+    let conv a = Array.to_list @@ Array.mapi (fun i (c,x) -> (i,c,x)) a in
+    Format.printf "@[<v>%a@]@." pp_points (conv cube) ;
+    Format.printf "@[<v>%a@]@." pp_points (conv cube');
+    assert false
+
 
 
 let xy v = Vec.{ v with x = -v.y; y = v.x }
@@ -105,7 +110,7 @@ let rotate z =
   let x,y = except z in
   let open Vec in
   (fun v -> (x|*|v) * y - (y|*|v) * x + (v|*|z) * z),
-  (fun v -> (y|*|v) * x - (x|*|v) * y + (x|*|z) * z)
+  (fun v -> (y|*|v) * x - (x|*|v) * y + (v|*|z) * z)
 
 let (&&&) f g v = if f v then g v else v
 
@@ -113,13 +118,13 @@ let plus v x = Vec.(x|*|v) >= 1
 let minus v x = Vec.(v|*|x) <= -1
 let zero v x = Vec.(v|*|x) = 0
 
-let transf v =
+let transf (name, v) =
   let r, r' = rotate v in
-  [ plus v &&& r; zero v &&& r ; minus v &&& r;
-    plus v &&& r'; zero v &&& r' ; minus v &&& r' ]
+  [ name^"pp", plus v &&& r; name ^ "mp", minus v &&& r;
+     name ^ "pm", plus v &&& r';  name ^ "mm", minus v &&& r' ]
 
 let transfs =
-  List.flatten @@ List.map transf basis
+  List.flatten @@ List.map transf [ "X" , x; "Y", y; "Z", z]
 
 let xy_plus = plus z &&& fst @@ rotate z
 
@@ -128,3 +133,47 @@ let print_f f =
   Format.printf "@[%a@]@." (pp_list pp_pair)
     (Array.to_list @@ Array.mapi (fun i n -> i, n) l)
 
+let typ x y ppf = Format.fprintf ppf "type %t = %t" x y
+let str x ppf = Format.fprintf ppf "%s" x
+let nl ppf = Format.fprintf ppf "@,"
+
+let start ppf =
+  let colors = [ "r"; "g"; "b"; "w"; "o"; "y"] in
+  Format.fprintf ppf "@[<v>";
+  List.iter (fun x -> typ (str x) (str ("C" ^ x)) ppf; nl ppf ) colors;
+  Format.fprintf ppf "type init = <@,";
+  let counter = ref 1 in
+  let print_face c =
+    for i = 1 to 3 do
+      for j = 1 to 3 do
+        Format.fprintf ppf "f%d:%s; " !counter c; incr counter
+      done;
+      nl ppf;
+    done; nl ppf; in
+  List.iter print_face colors;
+  Format.fprintf ppf ">@,@]"
+
+let transform (name,f) ppf =
+  Format.fprintf ppf "@ | %s:(@,<@[" name;
+  for i = 1 to size do
+    Format.fprintf ppf "f%d:'f%d;@ " i i
+  done;
+  Format.fprintf ppf "@]>,@ <@[";
+  let m = mapping f in
+  for i = 1 to size do
+    Format.fprintf ppf "f%d:'f%d;@ " i (1+m.(i-1))
+  done;
+  Format.fprintf ppf "@]>) action"
+
+let action ppf =
+  Format.fprintf ppf "@[<v>type (_,_) action =";
+  List.iter (fun x -> transform x ppf) transfs;
+  Format.fprintf ppf "@,@]"
+
+let output = ref Format.std_formatter
+let set_output s = output := Format.formatter_of_out_channel (open_out s)
+let args = ["-o", Arg.String set_output, "output file"]
+
+;; Arg.parse args ignore "gen -o file"
+
+;; Format.fprintf !output "%t%t@." start action

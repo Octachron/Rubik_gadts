@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(rule (
+  (targets (action.ml) )
+  (deps (../gen/gen.exe))
+  (action (run ${<} -o ${@}) )
+))
+
+
+(executable ((name proof) (modules (Proof Action))))
