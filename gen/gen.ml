@@ -163,10 +163,10 @@ let transform (name,f) ppf =
   for i = 1 to size do
     Format.fprintf ppf "f%d:'f%d;@ " i (1+m.(i-1))
   done;
-  Format.fprintf ppf "@]>) action"
+  Format.fprintf ppf "@]>) move"
 
 let action ppf =
-  Format.fprintf ppf "@[<v>type (_,_) action =";
+  Format.fprintf ppf "@[<v>type (_,_) move =";
   List.iter (fun x -> transform x ppf) transfs;
   Format.fprintf ppf "@,@]"
 
